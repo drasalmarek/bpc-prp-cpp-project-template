@@ -15,9 +15,11 @@ find_package(OpenCV REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-#set(SRC
-    
-#)
+set(SRC
+    src/nodes/node_subscriber.cpp
+    src/nodes/node_publisher.cpp
+    #src/nodes/node_gain.cpp
+)
 
 set(AMENT_LIBS rclcpp std_msgs sensor_msgs cv_bridge image_transport)
 

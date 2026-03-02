@@ -1,24 +1,28 @@
 
 #include <rclcpp/rclcpp.hpp>
-#include "example.hpp"
+#include "nodes/node_publisher.hpp"
+#include "nodes/node_subscriber.hpp"
+#include "nodes/node_gain.hpp"
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
+
+    const std::string sensor_topic = "sensor_data";
+    const std::string processed_topic = "processed_data";
+    const uint8_t gain_factor = 2;
 
     // Create an executor (for handling multiple nodes)
     auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
 
     // Create multiple nodes
-    auto node1 = std::make_shared<rclcpp::Node>("node1");
-    auto node2 = std::make_shared<rclcpp::Node>("node2");
-
-    // Create instances of RosExampleClass using the existing nodes
-    auto example_class1 = std::make_shared<RosExampleClass>(node1, "topic1", 1.0);
-    auto example_class2 = std::make_shared<RosExampleClass>(node2, "topic2", 2.0);
+    auto node_p = std::make_shared<nodes::node_publisher>(sensor_topic);
+    auto node_g = std::make_shared<nodes::node_gain>(sensor_topic, processed_topic, gain_factor);
+    auto node_s = std::make_shared<nodes::node_subscriber>(processed_topic);
 
     // Add nodes to the executor
-    executor->add_node(node1);
-    executor->add_node(node2);
+    executor->add_node(node_p);
+    executor->add_node(node_g);
+    executor->add_node(node_s);
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
