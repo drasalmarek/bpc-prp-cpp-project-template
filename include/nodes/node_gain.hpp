@@ -9,7 +9,9 @@ namespace nodes
      class node_gain : public rclcpp::Node {
      public:
          // Constructor
-         node_gain();
+         node_gain(const std::string& input_topic,
+            const std::string& output_topic,
+            const uint8_t gain_factor);
          // Destructor (default)
          ~node_gain() override = default;
  

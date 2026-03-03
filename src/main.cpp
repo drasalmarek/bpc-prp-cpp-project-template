@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
 
     const std::string sensor_topic = "sensor_data";
     const std::string processed_topic = "processed_data";
-    const uint8_t gain_factor = 2;
+    const uint8_t gain_factor = 3;
 
     // Create an executor (for handling multiple nodes)
     auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();

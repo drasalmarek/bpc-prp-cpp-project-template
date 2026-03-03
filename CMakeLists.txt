@@ -18,7 +18,7 @@ find_package(visualization_msgs REQUIRED)
 set(SRC
     src/nodes/node_subscriber.cpp
     src/nodes/node_publisher.cpp
-    #src/nodes/node_gain.cpp
+    src/nodes/node_gain.cpp
 )
 
 set(AMENT_LIBS rclcpp std_msgs sensor_msgs cv_bridge image_transport)
