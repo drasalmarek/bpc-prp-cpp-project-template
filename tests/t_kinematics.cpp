@@ -37,8 +37,8 @@ TEST(KinematicsTest, BackwardPositiveLinearVelocitySI) {
 }
 
 TEST(KinematicsTest, BackwardPositiveAngularVelocitySI) {
-    const float linear = 1.0;
-    const float angular = 0;
+    const float linear = 0;
+    const float angular = 1.0;
     const float expected_l = -(0.5 * WHEEL_BASE) / WHEEL_CIRCUMFERENCE * (2 * M_PI);
     const float expected_r = +(0.5 * WHEEL_BASE) / WHEEL_CIRCUMFERENCE * (2 * M_PI);
 

@@ -5,6 +5,8 @@ if(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 17)
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -19,6 +21,8 @@ set(SRC
     src/nodes/node_subscriber.cpp
     src/nodes/node_publisher.cpp
     src/nodes/node_gain.cpp
+    src/nodes/node_motor.cpp
+    src/kinematics.cpp
 )
 
 set(AMENT_LIBS rclcpp std_msgs sensor_msgs cv_bridge image_transport)
