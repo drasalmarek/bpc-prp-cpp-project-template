@@ -5,6 +5,7 @@
 #include "nodes/node_gain.hpp"
 #include "nodes/node_motor.hpp"
 #include "nodes/node_line.hpp"
+#include "nodes/node_lidar_image.hpp"
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
@@ -20,9 +21,14 @@ int main(int argc, char* argv[]) {
         "/bpc_prp_robot/line_pose", 
         "/bpc_prp_robot/set_motor_speeds");
 
+    auto lidar_image_node = std::make_shared<nodes::node_lidar_image>(
+        "/bpc_prp_robot/lidar", 
+        "/bpc_prp_robot/lidar_image");
+
     // Add nodes to the executor
-    executor->add_node(line_node);
-    executor->add_node(motor_node);
+    //executor->add_node(line_node);
+    //executor->add_node(motor_node);
+    executor->add_node(lidar_image_node);
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
