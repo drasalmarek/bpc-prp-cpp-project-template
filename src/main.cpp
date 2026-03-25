@@ -6,6 +6,8 @@
 #include "nodes/node_motor.hpp"
 #include "nodes/node_line.hpp"
 
+// hello nevim pouzivat git tak testuju
+
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
 
