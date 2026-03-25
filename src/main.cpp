@@ -4,22 +4,24 @@
 #include "nodes/node_subscriber.hpp"
 #include "nodes/node_gain.hpp"
 #include "nodes/node_motor.hpp"
+#include "nodes/node_line.hpp"
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
 
-    const std::string sensor_topic = "sensor_data";
-    const std::string processed_topic = "processed_data";
-    const uint8_t gain_factor = 3;
-
     // Create an executor (for handling multiple nodes)
     auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
 
-    auto motor_node = std::make_shared<nodes::node_motor>(
-        "/bpc_prp_robot/set_motor_speeds", 
-        "/bpc_prp_robot/line_sensors");
+    auto line_node = std::make_shared<nodes::node_line>(
+        "/bpc_prp_robot/line_sensors", 
+        "/bpc_prp_robot/line_pose");
 
-    // Add motor node to the executor
+    auto motor_node = std::make_shared<nodes::node_motor>(
+        "/bpc_prp_robot/line_pose", 
+        "/bpc_prp_robot/set_motor_speeds");
+
+    // Add nodes to the executor
+    executor->add_node(line_node);
     executor->add_node(motor_node);
 
     // Run the executor (handles callbacks for both nodes)
