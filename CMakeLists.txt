@@ -24,6 +24,9 @@ set(SRC
     src/nodes/node_motor.cpp
     src/nodes/node_line.cpp
     src/nodes/node_lidar_image.cpp
+    src/nodes/node_lidar_control.cpp
+    src/nodes/node_fsm.cpp
+    src/nodes/node_imu.cpp
     src/kinematics.cpp
 )
 

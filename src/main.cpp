@@ -6,29 +6,33 @@
 #include "nodes/node_motor.hpp"
 #include "nodes/node_line.hpp"
 #include "nodes/node_lidar_image.hpp"
+#include "nodes/node_lidar_control.hpp"
+#include "nodes/node_fsm.hpp"
+#include "nodes/node_imu.hpp"
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
 
     // Create an executor (for handling multiple nodes)
     auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    
+    auto lidar_control_node = std::make_shared<nodes::node_lidar_control>(
+        "/bpc_prp_robot/lidar",
+        "/bpc_prp_robot/lidar_control");
 
-    auto line_node = std::make_shared<nodes::node_line>(
-        "/bpc_prp_robot/line_sensors", 
-        "/bpc_prp_robot/line_pose");
-
-    auto motor_node = std::make_shared<nodes::node_motor>(
-        "/bpc_prp_robot/line_pose", 
+    auto fsm_node = std::make_shared<nodes::node_fsm>(
+        "/bpc_prp_robot/lidar_control", 
         "/bpc_prp_robot/set_motor_speeds");
 
-    auto lidar_image_node = std::make_shared<nodes::node_lidar_image>(
-        "/bpc_prp_robot/lidar", 
-        "/bpc_prp_robot/lidar_image");
+    auto imu_node = std::make_shared<nodes::node_imu>(
+        "/bpc_prp_robot/imu",
+        "/bpc_prp_robot/imu_angle",
+        "/bpc_prp_robot/set_motor_speeds");
 
     // Add nodes to the executor
-    //executor->add_node(line_node);
-    //executor->add_node(motor_node);
-    executor->add_node(lidar_image_node);
+    //executor->add_node(lidar_control_node);
+    executor->add_node(imu_node);
+    //executor->add_node(fsm_node);
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
