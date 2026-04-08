@@ -4,6 +4,7 @@
 #include <rclcpp/rclcpp.hpp>    
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 
 namespace nodes
@@ -11,7 +12,7 @@ namespace nodes
      class node_imu : public rclcpp::Node {
      public:
          // Constructor
-         node_imu(const std::string& imu_topic, const std::string& output_topic, const std::string& motor_topic);
+         node_imu(const std::string& imu_topic, const std::string& output_topic);
          // Destructor (default)
          ~node_imu() override = default;
 
@@ -30,10 +31,7 @@ namespace nodes
         float calibration_start_time_ = 0.0f;
 
         // Publisher member variable
-        rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr motor_publisher_;
-
-        // Publisher member variable
-        rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr publisher_;
+        rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr publisher_;
         // Subscriber member variable
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr subscriber_;
         // Callback function for the subscriber

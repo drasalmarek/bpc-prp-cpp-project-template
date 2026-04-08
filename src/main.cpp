@@ -21,18 +21,25 @@ int main(int argc, char* argv[]) {
         "/bpc_prp_robot/lidar_control");
 
     auto fsm_node = std::make_shared<nodes::node_fsm>(
-        "/bpc_prp_robot/lidar_control", 
-        "/bpc_prp_robot/set_motor_speeds");
+        "/bpc_prp_robot/lidar_control",
+        "/bpc_prp_robot/wanted_speed",
+        "/bpc_prp_robot/wanted_angle");
 
     auto imu_node = std::make_shared<nodes::node_imu>(
         "/bpc_prp_robot/imu",
+        "/bpc_prp_robot/imu_angle");
+
+    auto motor_node = std::make_shared<nodes::node_motor>(
+        "/bpc_prp_robot/wanted_angle",
+        "/bpc_prp_robot/wanted_speed",
         "/bpc_prp_robot/imu_angle",
         "/bpc_prp_robot/set_motor_speeds");
 
     // Add nodes to the executor
-    //executor->add_node(lidar_control_node);
+    executor->add_node(lidar_control_node);
     executor->add_node(imu_node);
-    //executor->add_node(fsm_node);
+    executor->add_node(motor_node);
+    executor->add_node(fsm_node);
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
