@@ -73,7 +73,7 @@ namespace nodes
         auto output_msg = std_msgs::msg::Float32MultiArray();
         output_msg.data = {angle, static_cast<float>(dt)};
         publisher_->publish(output_msg);
-        RCLCPP_INFO(this->get_logger(), "IMU Angle: %.4f, angular velocity: %.4f, dt: %.4f", angle, msg->angular_velocity.z, dt*1000.0f);
+        //RCLCPP_INFO(this->get_logger(), "IMU Angle: %.4f, angular velocity: %.4f, dt: %.4f", angle, msg->angular_velocity.z, dt*1000.0f);
     
     }
 }

@@ -2,16 +2,13 @@
 #include "nodes/node_motor.hpp"
 #include <cmath>
 
-namespace
+float normalize_angle_degrees(float angle)
 {
-    float normalize_angle_degrees(float angle)
-    {
-        float normalized = std::remainder(angle, 360.0f);
-        if (normalized == -180.0f) {
-            normalized = 180.0f;
-        }
-        return normalized;
+    float normalized = std::remainder(angle, 360.0f);
+    if (normalized == -180.0f) {
+        normalized = 180.0f;
     }
+    return normalized;
 }
 
 namespace nodes
@@ -68,7 +65,7 @@ namespace nodes
 
     void node_motor::wanted_angle_callback(const std_msgs::msg::Float32::SharedPtr msg)
     {
-        wanted_angle_ += msg->data;
+        wanted_angle_ = msg->data;
         wanted_angle_ = normalize_angle_degrees(wanted_angle_);
     }
 

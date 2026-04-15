@@ -33,12 +33,16 @@ namespace nodes
         float distance_left = msg->data[1];
         float distance_right = msg->data[2];
         float distance_back = msg->data[3];
+        float front_angle = msg->data[4];
+
+        //RCLCPP_INFO(this->get_logger(), "Front Angle: %.2f", front_angle);
 
         auto motor_message = std_msgs::msg::UInt8MultiArray();
 
-        const float FRONT_THRESHOLD = 0.25f; // Example threshold for obstacle detection
-        const float LEFT_THRESHOLD = 0.44f; // 0.44
-        const float RIGHT_THRESHOLD = 0.44f; // 0.44
+        const float FRONT_THRESHOLD = 0.3f;
+        const float LEFT_THRESHOLD = 0.44f;
+        const float RIGHT_THRESHOLD = 0.44f;
+        const float DISTANCE_TO_WALL_GOAL = 0.2f; // 0.2 fungovalo
 
         switch(state)
         {
@@ -87,12 +91,26 @@ namespace nodes
                     }
                 }
 
-                if (distance_left < LEFT_THRESHOLD && distance_right < RIGHT_THRESHOLD) // Go straight according to lidar
+                if (distance_left < LEFT_THRESHOLD || distance_right < RIGHT_THRESHOLD) // Go straight according to lidar
                 {
-                    float distance_diff = distance_left - distance_right;
-                    float angle_correction = distance_diff * 5.0f; // Proportional regulator
+                    float distance_diff = 0.0f;
+
+                    if(distance_left < distance_right)
+                    {
+                        distance_diff = (distance_left - DISTANCE_TO_WALL_GOAL);
+                    }
+                    else
+                    {
+                        distance_diff = -(distance_right - DISTANCE_TO_WALL_GOAL);
+                    }
+
+                    float angle_correction = 15.0 * distance_diff; // 30 fungovalo
+
+                    RCLCPP_INFO(this->get_logger(), "Distance Diff: %.2f, Angle Correction: %.2f", distance_diff, angle_correction);
+                    wanted_angle_ += angle_correction;
+                    wanted_angle_ = normalize_angle_degrees(wanted_angle_);
                     auto message = std_msgs::msg::Float32();
-                    message.data = angle_correction;
+                    message.data = wanted_angle_;
                     wanted_angle_publisher_->publish(message);
                 }
 
@@ -108,7 +126,11 @@ namespace nodes
                 RCLCPP_INFO(this->get_logger(), "Turning Left");
 
                 auto message = std_msgs::msg::Float32();
-                message.data = 90.0f;
+                RCLCPP_INFO(this->get_logger(), "Wanted Angle: %.2f", wanted_angle_);
+                wanted_angle_ += front_angle; // Turn according to front angle
+                wanted_angle_ = normalize_angle_degrees(wanted_angle_);
+                RCLCPP_INFO(this->get_logger(), "Wanted Angle: %.2f", wanted_angle_);
+                message.data = wanted_angle_;
                 wanted_angle_publisher_->publish(message);
 
                 message = std_msgs::msg::Float32();
@@ -127,7 +149,11 @@ namespace nodes
                 RCLCPP_INFO(this->get_logger(), "Turning Right");
 
                 auto message = std_msgs::msg::Float32();
-                message.data = -90.0f;
+                RCLCPP_INFO(this->get_logger(), "Wanted Angle: %.2f", wanted_angle_);
+                wanted_angle_ -= 180.0f - front_angle; // Turn according to front angle
+                wanted_angle_ = normalize_angle_degrees(wanted_angle_);
+                RCLCPP_INFO(this->get_logger(), "Wanted Angle: %.2f", wanted_angle_);
+                message.data = wanted_angle_;
                 wanted_angle_publisher_->publish(message);
 
                 message = std_msgs::msg::Float32();

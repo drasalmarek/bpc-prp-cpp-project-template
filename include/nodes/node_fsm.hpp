@@ -5,6 +5,7 @@
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
+#include <nodes/node_motor.hpp>
 
 namespace nodes
 {
@@ -18,6 +19,8 @@ namespace nodes
          ~node_fsm() override = default;
  
      private:
+        float wanted_angle_ = 0.0;
+
         // Publisher member variable
         rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wanted_speed_publisher_;
         rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wanted_angle_publisher_;

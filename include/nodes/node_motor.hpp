@@ -21,6 +21,8 @@
 #define PID_I 0.0f
 #define PID_D 0.0f
 
+float normalize_angle_degrees(float angle);
+
 namespace nodes
 {
      class node_motor : public rclcpp::Node {
