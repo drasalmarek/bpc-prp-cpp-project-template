@@ -22,6 +22,7 @@ set(SRC
     src/nodes/node_publisher.cpp
     src/nodes/node_gain.cpp
     src/nodes/node_motor.cpp
+    src/nodes/node_motor_pid.cpp
     src/nodes/node_line.cpp
     src/nodes/node_lidar_image.cpp
     src/nodes/node_lidar_control.cpp
