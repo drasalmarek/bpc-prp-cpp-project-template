@@ -27,6 +27,7 @@ set(SRC
     src/nodes/node_lidar_control.cpp
     src/nodes/node_fsm.cpp
     src/nodes/node_imu.cpp
+    src/nodes/node_pathfinder.cpp
     src/kinematics.cpp
 )
 

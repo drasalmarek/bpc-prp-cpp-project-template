@@ -9,6 +9,7 @@
 #include "nodes/node_lidar_control.hpp"
 #include "nodes/node_fsm.hpp"
 #include "nodes/node_imu.hpp"
+#include "nodes/node_pathfinder.hpp"
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
@@ -35,11 +36,17 @@ int main(int argc, char* argv[]) {
         "/bpc_prp_robot/imu_angle",
         "/bpc_prp_robot/set_motor_speeds");
 
+    auto pathfinder_node = std::make_shared<nodes::node_pathfinder>(
+        "/bpc_prp_robot/lidar",
+        "/bpc_prp_robot/wanted_speed",
+        "/bpc_prp_robot/wanted_angle");
+
     // Add nodes to the executor
-    executor->add_node(lidar_control_node);
+    //executor->add_node(lidar_control_node);
     executor->add_node(imu_node);
     executor->add_node(motor_node);
-    executor->add_node(fsm_node);
+    executor->add_node(pathfinder_node);
+    //executor->add_node(fsm_node);
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
