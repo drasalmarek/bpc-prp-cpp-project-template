@@ -34,9 +34,9 @@ int main(int argc, char* argv[]) {
         "/bpc_prp_robot/qr_code_id");
 
     // Add nodes to the executor
-    executor->add_node(motor_pid_node);
-    executor->add_node(pathfinder_node);
-    //executor->add_node(qr_code_node);
+    //executor->add_node(motor_pid_node);
+    //executor->add_node(pathfinder_node);
+    executor->add_node(qr_code_node);
 
 
     // Run the executor (handles callbacks for both nodes)

@@ -19,7 +19,9 @@ namespace nodes
          ~node_pathfinder() override = default;
  
      private:
-        float angle_ = 0.0;
+      float angle_ = 0.0;
+      rclcpp::Time last_crossroad_time_;
+      rclcpp::Duration crossroad_cooldown_ = rclcpp::Duration::from_seconds(5.0);
 
         // Publisher member variable
         rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wanted_speed_publisher_;
