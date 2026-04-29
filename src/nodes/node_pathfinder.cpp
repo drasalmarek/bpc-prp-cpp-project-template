@@ -2,8 +2,8 @@
 #include <nodes/node_pathfinder.hpp>
 #include <cmath>
 
-#define DETECTION_RADIUS (0.5f)
-#define DETECTION_RADIUS_HYSTERESIS (0.1f)
+#define DETECTION_RADIUS (0.45f) // 0.5f
+#define DETECTION_RADIUS_HYSTERESIS (0.05f) // 0.1f
 
 #define OBSTACLE (1)
 #define NO_OBSTACLE (0)
@@ -136,7 +136,7 @@ namespace nodes
                 obstacle_map_str += "G"; // mark other gap centres with a G
             }
         }
-        RCLCPP_INFO(this->get_logger(), "Obstacle map: %s", obstacle_map_str.c_str());
+        //RCLCPP_INFO(this->get_logger(), "Obstacle map: %s", obstacle_map_str.c_str());
 
         // calculate the angle to the closest gap centre
         float angle_increment = msg->angle_increment;

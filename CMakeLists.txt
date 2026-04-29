@@ -29,6 +29,7 @@ set(SRC
     src/nodes/node_fsm.cpp
     src/nodes/node_imu.cpp
     src/nodes/node_pathfinder.cpp
+    src/nodes/node_qr_code.cpp
     src/kinematics.cpp
 )
 
