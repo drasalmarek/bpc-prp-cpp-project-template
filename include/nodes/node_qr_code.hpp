@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
-#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/u_int8.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <algorithms/qr_code.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -21,7 +21,7 @@ namespace nodes
  
      private:
         // Publisher member variable
-        rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr output_publisher_;
+        rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr output_publisher_;
 
         // Subscriber member variable
         rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_;

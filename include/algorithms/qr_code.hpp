@@ -13,7 +13,8 @@ namespace algorithms {
             std::vector<cv::Point2f> corners;
         };
 
-        ArucoDetector() {
+        ArucoDetector() 
+        {
             // Initialize dictionary with 4x4 markers (50 possible IDs)
             dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
         }
@@ -21,7 +22,8 @@ namespace algorithms {
         ~ArucoDetector() = default;
 
         // Detect markers in the input image
-        std::vector<Aruco> detect(cv::Mat frame) {
+        std::vector<Aruco> detect(cv::Mat frame) 
+        {
             std::vector<Aruco> arucos;
 
             std::vector<int> marker_ids;
@@ -30,6 +32,15 @@ namespace algorithms {
             // TODO: Detect markers using OpenCV
             // cv::aruco::detectMarkers(...);
             cv::aruco::detectMarkers(frame, dictionary_, marker_corners, marker_ids);
+
+            // Convert detected markers to our Aruco struct
+            for (size_t i = 0; i < marker_ids.size(); ++i)
+            {
+                Aruco aruco;
+                aruco.id = marker_ids[i];
+                aruco.corners = marker_corners[i];
+                arucos.push_back(aruco);
+            }
 
             return arucos;
         }

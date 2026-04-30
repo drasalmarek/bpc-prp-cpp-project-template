@@ -21,6 +21,7 @@ int main(int argc, char* argv[]) {
 
     auto pathfinder_node = std::make_shared<nodes::node_pathfinder>(
         "/bpc_prp_robot/lidar",
+        "/bpc_prp_robot/aruco",
         "/bpc_prp_robot/wanted_speed",
         "/bpc_prp_robot/wanted_angle");
 
@@ -31,13 +32,12 @@ int main(int argc, char* argv[]) {
 
     auto qr_code_node = std::make_shared<nodes::node_qr_code>(
         "/bpc_prp_robot/camera",
-        "/bpc_prp_robot/qr_code_id");
+        "/bpc_prp_robot/aruco");
 
     // Add nodes to the executor
-    //executor->add_node(motor_pid_node);
-    //executor->add_node(pathfinder_node);
+    executor->add_node(motor_pid_node);
+    executor->add_node(pathfinder_node);
     executor->add_node(qr_code_node);
-
 
     // Run the executor (handles callbacks for both nodes)
     executor->spin();
