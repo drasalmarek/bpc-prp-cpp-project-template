@@ -49,7 +49,37 @@ std::vector<struct GapCentre> gap_centres_angles(const sensor_msgs::msg::LaserSc
             }
         }
     }
+    for(size_t i = 0; i < msg->ranges.size(); ++i)
+    {
+        float distance = msg->ranges[i];
+        if (distance < detection_radius - detection_radius_hysteresis) 
+        {
+            obstacle_map[i] = OBSTACLE;
+        } 
+        else if (distance > detection_radius + detection_radius_hysteresis) 
+        {
+            obstacle_map[i] = NO_OBSTACLE;
+        } 
+        else
+        {
+            if(i > 0)
+            {
+                obstacle_map[i] = obstacle_map[i - 1];
+            }
+            else
+            {
+                obstacle_map[i] = NO_OBSTACLE;
+            }
+        }
+    }
 
+    // invert direction of the obstacle map so that front is in the middle of the array and left and right are on the sides
+    bool inverted_obstacle_map[msg->ranges.size()];
+    for(size_t i = 0; i < msg->ranges.size(); ++i)
+    {
+        inverted_obstacle_map[i] = obstacle_map[(i + msg->ranges.size() / 2) % msg->ranges.size()];
+    }  
+    std::copy(inverted_obstacle_map, inverted_obstacle_map + msg->ranges.size(), obstacle_map);
     // invert direction of the obstacle map so that front is in the middle of the array and left and right are on the sides
     bool inverted_obstacle_map[msg->ranges.size()];
     for(size_t i = 0; i < msg->ranges.size(); ++i)
@@ -261,6 +291,11 @@ namespace nodes
 
                     /*
                     // find the gap centre based on aruco ID
+                    // process aruco
+                    // 0|10 = straight, 1|11 = left turn, 2|12 = right turn
+
+                    /*
+                    // find the gap centre based on aruco ID
                     float right_gap_angle = gap_centres_angles[0];
                     for(size_t i = 1; i < gap_centres.size(); ++i)
                     {
@@ -269,6 +304,19 @@ namespace nodes
                             right_gap_angle = gap_centres_angles[i];
                         }
                     }
+                    */
+
+                    RCLCPP_INFO(this->get_logger(), "Last Aruco ID: %d", aruco_last_id_);
+
+                    if(aruco_last_id_ == 0 || aruco_last_id_ == 10)
+                    {
+                        ;;
+                    }
+                    else
+                    {
+                        auto message_speed = std_msgs::msg::Float32();
+                        message_speed.data = 0.0f;
+                        wanted_speed_publisher_->publish(message_speed);
                     */
 
                     RCLCPP_INFO(this->get_logger(), "Last Aruco ID: %d", aruco_last_id_);
@@ -301,6 +349,10 @@ namespace nodes
                     }
 
                     aruco_last_id_ = 2; // reset aruco ID to default right turn
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2000)); // wait for the robot to turn
+                    }
+
+                    aruco_last_id_ = 2; // reset aruco ID to default right turn
 
                     // record the time of this detection so we can ignore subsequent
                     // detections for a short cooldown period instead of blocking the thread
@@ -320,9 +372,11 @@ namespace nodes
 
         auto message_speed = std_msgs::msg::Float32();
         message_speed.data = 10.0f;
+        message_speed.data = 10.0f;
         wanted_speed_publisher_->publish(message_speed);
 
         auto message_angle = std_msgs::msg::Float32();
+        message_angle.data = angle_to_gap_centre_deg;
         message_angle.data = angle_to_gap_centre_deg;
         wanted_angle_publisher_->publish(message_angle);
     }
