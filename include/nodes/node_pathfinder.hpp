@@ -9,6 +9,12 @@
 #include <std_msgs/msg/u_int8.hpp>
 #include <nodes/node_motor.hpp>
 
+struct GapCentre
+{
+    float angle;
+    float size;
+};
+
 namespace nodes
 {
      class node_pathfinder : public rclcpp::Node {

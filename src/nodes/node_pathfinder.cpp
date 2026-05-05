@@ -2,18 +2,25 @@
 #include <nodes/node_pathfinder.hpp>
 #include <cmath>
 
-#define DETECTION_RADIUS (0.4f)
-#define DETECTION_RADIUS_HYSTERESIS (0.1f) // 0.1f
+#define DETECTION_RADIUS_CLOSE (0.35f)
+#define DETECTION_RADIUS_HYSTERESIS_CLOSE (0.1f) // 0.1f
 
-#define DETECTION_RADIUS_2 (0.75f)
-#define DETECTION_RADIUS_HYSTERESIS_2 (0.1f) // 0.1f
+#define DETECTION_RADIUS_MIDDLE (0.7f)
+#define DETECTION_RADIUS_HYSTERESIS_MIDDLE (0.25f) // 0.1f
 
-#define MIN_GAP_WIDTH_INDEXES (50)
+#define DETECTION_RADIUS_FAR (0.75f)
+#define DETECTION_RADIUS_HYSTERESIS_FAR (0.1f) // 0.1f
+
+#define MIN_GAP_WIDTH_INDEXES (20) // minimum gap width in number of LIDAR points, should be at least 2 to allow the robot to fit through
+
+#define MAX_GAP_WIDTH_ANGLE (170.0f) // degrees
+
+#define FAR_CENTRE_SECTION (15.0f) // degrees, +- angle range
 
 #define OBSTACLE (1)
 #define NO_OBSTACLE (0)
 
-std::vector<float> gap_centres_angles(const sensor_msgs::msg::LaserScan::SharedPtr msg, const float& detection_radius, const float& detection_radius_hysteresis)
+std::vector<struct GapCentre> gap_centres_angles(const sensor_msgs::msg::LaserScan::SharedPtr msg, const float& detection_radius, const float& detection_radius_hysteresis)
 {
     // create a boolean array to store whether an obstacle is detected in each direction
     // false = no obstacle, true = obstacle
@@ -64,8 +71,17 @@ std::vector<float> gap_centres_angles(const sensor_msgs::msg::LaserScan::SharedP
         }
     }
 
+    // fill the back with obstacles to avoid detecting gaps in the back
+    for(size_t i = 0; i < msg->ranges.size(); ++i)
+    {
+        if(std::abs((static_cast<float>(i) * msg->angle_increment * 180.0f / static_cast<float>(M_PI) - 180.0f)) > 140.0f) // only consider gaps that are within +-95 degrees of the front
+        {
+            obstacle_map[i] = OBSTACLE;
+        }
+    }
+
     // find centres of gaps in the obstacle map
-    std::vector<size_t> gap_centres;
+    std::vector<struct GapCentre> gap_centres_structs;
     bool last_value = obstacle_map[0];
     size_t gap_start = 0; 
 
@@ -77,8 +93,12 @@ std::vector<float> gap_centres_angles(const sensor_msgs::msg::LaserScan::SharedP
             {
                 if(i >= gap_start + MIN_GAP_WIDTH_INDEXES) // only consider gaps that are at least MIN_GAP_WIDTH_INDEXES indices wide
                 {
-                    gap_centres.push_back((gap_start + i) / 2);
-                }
+                    gap_centres_structs.push_back(
+                        {
+                            (static_cast<float>(gap_start + i) / 2) * msg->angle_increment * 180.0f / static_cast<float>(M_PI) - 180.0f, 
+                            static_cast<float>(i - gap_start) * 360.0f / static_cast<float>(msg->ranges.size()) // convert gap width from number of indices to degrees
+                        });
+                };
             }
             else
             {
@@ -88,19 +108,12 @@ std::vector<float> gap_centres_angles(const sensor_msgs::msg::LaserScan::SharedP
         }
     }
 
-    // convert gap centres to angles
-    std::vector<float> gap_centres_angles;
-    for(const auto& gap_centre : gap_centres)
-    {
-        gap_centres_angles.push_back(((float)gap_centre) * msg->angle_increment * 180.0f / static_cast<float>(M_PI) - 180.0f);
-    }
-
     // delete gap centres that are in the back
-    gap_centres_angles.erase(std::remove_if(gap_centres_angles.begin(), gap_centres_angles.end(), [](float angle) {
-        return std::abs(angle) > 95.0f; // only consider gaps that are within +-95 degrees of the front
-    }), gap_centres_angles.end());
+    gap_centres_structs.erase(std::remove_if(gap_centres_structs.begin(), gap_centres_structs.end(), [](const struct GapCentre& gap_centre) {
+        return std::abs(gap_centre.angle) > 95.0f; // only consider gaps that are within +-95 degrees of the front
+    }), gap_centres_structs.end());
 
-    return gap_centres_angles;
+    return gap_centres_structs;
 }
 
 namespace nodes
@@ -144,8 +157,9 @@ namespace nodes
 
     void node_pathfinder::lidar_subscriber_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
-        std::vector<float> gap_centres_close = gap_centres_angles(msg, DETECTION_RADIUS, DETECTION_RADIUS_HYSTERESIS);
-        std::vector<float> gap_centres_far = gap_centres_angles(msg, DETECTION_RADIUS_2, DETECTION_RADIUS_HYSTERESIS_2);
+        std::vector<struct GapCentre> gap_centres_close = gap_centres_angles(msg, DETECTION_RADIUS_CLOSE, DETECTION_RADIUS_HYSTERESIS_CLOSE);
+        std::vector<struct GapCentre> gap_centres_middle = gap_centres_angles(msg, DETECTION_RADIUS_MIDDLE, DETECTION_RADIUS_HYSTERESIS_MIDDLE);
+        std::vector<struct GapCentre> gap_centres_far = gap_centres_angles(msg, DETECTION_RADIUS_FAR, DETECTION_RADIUS_HYSTERESIS_FAR);
 
         // find the gap centre from both sets closest to the front (angles are in degrees)
         if(gap_centres_close.empty() && gap_centres_far.empty())
@@ -163,40 +177,62 @@ namespace nodes
         }
 
         const float front_angle = 0.0f; // degrees
-
-        float closest_gap_centre = gap_centres_close.empty() ? gap_centres_far[0] : gap_centres_close[0];
-        for(size_t i = 0; i < gap_centres_close.size(); ++i)
+        struct GapCentre closest_gap_centre = {0.0f, 0.0f};
+        bool closest_gap_centre_valid = false;
+        if(!gap_centres_close.empty())
         {
-            if(std::abs(gap_centres_close[i] - front_angle) < std::abs(closest_gap_centre - front_angle))
+            closest_gap_centre = gap_centres_close[0];
+            for(size_t i = 0; i < gap_centres_close.size(); ++i)
             {
-                closest_gap_centre = gap_centres_close[i];
+                if(std::abs(gap_centres_close[i].angle - front_angle) < std::abs(closest_gap_centre.angle - front_angle))
+                {
+                    closest_gap_centre = gap_centres_close[i];
+                }
+            }
+
+            if(closest_gap_centre.size > MAX_GAP_WIDTH_ANGLE)
+            {
+                RCLCPP_WARN(this->get_logger(), "No valid gap found, closest gap is too wide (%.2f degrees)", closest_gap_centre.size);
+                closest_gap_centre_valid = false;
+            }
+            else
+            {
+                closest_gap_centre_valid = true;
             }
         }
 
-        if(gap_centres_close.empty())
+        if(!closest_gap_centre_valid && !gap_centres_far.empty())
         {
+            closest_gap_centre = gap_centres_far[0];
             for(size_t i = 0; i < gap_centres_far.size(); ++i)
             {
-                if(std::abs(gap_centres_far[i] - front_angle) < std::abs(closest_gap_centre - front_angle))
+                if(std::abs(gap_centres_far[i].angle - front_angle) < std::abs(closest_gap_centre.angle - front_angle))
                 {
-                    closest_gap_centre = gap_centres_far[i];
+                    if(std::abs(gap_centres_far[i].angle) < FAR_CENTRE_SECTION) // point is facing front
+                    {
+                        closest_gap_centre = gap_centres_far[i];
+                    }
                 }
             }
         }
 
         std::string gap_centres_close_str;
+        std::string gap_centres_middle_str;
         std::string gap_centres_far_str;
-
+        
         for(const auto& gap_centre : gap_centres_close)
         {
-            gap_centres_close_str += std::to_string(gap_centre) + " ";
+            gap_centres_close_str += std::to_string(gap_centre.angle) + " ";
+        }
+        for(const auto& gap_centre : gap_centres_middle)
+        {
+            gap_centres_middle_str += std::to_string(gap_centre.angle) + " ";
         }
         for(const auto& gap_centre : gap_centres_far)
         {
-            gap_centres_far_str += std::to_string(gap_centre) + " ";
+            gap_centres_far_str += std::to_string(gap_centre.angle) + " ";
         }
-        RCLCPP_INFO(this->get_logger(), "Gap centres close: %s, far: %s", gap_centres_close_str.c_str(), gap_centres_far_str.c_str()); 
-
+        RCLCPP_INFO(this->get_logger(), "Gap centres close: %s, middle: %s, far: %s", gap_centres_close_str.c_str(), gap_centres_middle_str.c_str(), gap_centres_far_str.c_str()); 
 
 
         // === find crossroads ===
@@ -211,11 +247,11 @@ namespace nodes
         }
         else
         {
-            if(gap_centres_far.size() >= 2)
+            if(gap_centres_middle.size() >= 2)
             {
                 ++num_crossroad_detects;
 
-                if(num_crossroad_detects >= 3) // only consider it a crossroad if it is detected for 3 consecutive scans
+                if(num_crossroad_detects >= 4) // only consider it a crossroad if it is detected for 4 consecutive scans
                 {
                     num_crossroad_detects = 0;
                     RCLCPP_INFO(this->get_logger(), "Crossroad detected!");
@@ -248,7 +284,7 @@ namespace nodes
                         wanted_speed_publisher_->publish(message_speed);
 
                         auto message_angle = std_msgs::msg::Float32();
-                        message_angle.data = (aruco_last_id_ == 1 || aruco_last_id_ == 11) ? 90.0f : -90.0f;
+                        message_angle.data = (aruco_last_id_ == 1 || aruco_last_id_ == 11) ? 45.0f : -45.0f;
                         wanted_angle_publisher_->publish(message_angle);
 
                         std::this_thread::sleep_for(std::chrono::milliseconds(300)); // wait for the robot to turn
@@ -280,7 +316,7 @@ namespace nodes
 
 
         // calculate the angle to the closest gap centre (already in degrees)
-        float angle_to_gap_centre_deg = closest_gap_centre;
+        float angle_to_gap_centre_deg = closest_gap_centre.angle;
 
         auto message_speed = std_msgs::msg::Float32();
         message_speed.data = 10.0f;
