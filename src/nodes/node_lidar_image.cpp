@@ -10,8 +10,8 @@ void lidar_data(const sensor_msgs::msg::LaserScan::SharedPtr msg, float& front_a
 
     float front_angle = 0.0f;
 
-    const float front_left_bound = -160 * M_PI / 180; // 160 fungovalo
-    const float front_right_bound = 160 * M_PI / 180;
+    const float front_left_bound = -175 * M_PI / 180; // 160 fungovalo
+    const float front_right_bound = 175 * M_PI / 180;
 
     const float left_left_bound = -120 * M_PI / 180;
     const float left_right_bound = -90 * M_PI / 180;
@@ -279,16 +279,6 @@ namespace nodes
 
         //RCLCPP_INFO(this->get_logger(), "Best heading: %.2f degrees", best_heading);
 
-        auto message_speed = std_msgs::msg::Float32();
-        message_speed.data = 10.0f;
-        wanted_speed_publisher_->publish(message_speed);
-
-        auto message_angle = std_msgs::msg::Float32();
-        message_angle.data = -best_heading;
-        wanted_angle_publisher_->publish(message_angle);      
-
-
-
         float lidar_front_avg = 0.0f;
         float lidar_left_avg = 0.0f;
         float lidar_right_avg = 0.0f;
@@ -301,15 +291,25 @@ namespace nodes
         const float crossroad_left_threshold = 0.55f; // adjust as needed
         const float crossroad_right_threshold = 0.55f; // adjust as needed
         const float crossroad_front_threshold = 0.55f; // adjust as needed
-        const float crossroad_back_threshold = 0.60f; // adjust as needed
+        const float crossroad_back_threshold = 0.5f; // adjust as needed
         if (lidar_back_avg > crossroad_back_threshold && this->now() - last_crossroad_time_ > crossroad_cooldown_)
         {
             if((lidar_left_avg > crossroad_left_threshold && lidar_right_avg > crossroad_right_threshold && lidar_front_avg > crossroad_front_threshold) || 
-               (lidar_left_avg > crossroad_left_threshold && lidar_right_avg > crossroad_right_threshold) ||
                (lidar_right_avg > crossroad_right_threshold && lidar_front_avg > crossroad_front_threshold) ||
                (lidar_left_avg > crossroad_left_threshold && lidar_front_avg > crossroad_front_threshold))
             {
                 RCLCPP_INFO(this->get_logger(), "Crossroad detected!");
+
+                if(lidar_back_avg > 0.8f)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+
+                auto message_speed = std_msgs::msg::Float32();
+                message_speed.data = 0.0f;
+                wanted_speed_publisher_->publish(message_speed);
+
+                auto message_angle = std_msgs::msg::Float32();
 
                 switch(aruco_last_id_)
                 {
@@ -326,7 +326,7 @@ namespace nodes
 
                         message_angle.data = 0.0f;
                         wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                         break;
                     case 2:
                     case 12:
@@ -337,7 +337,7 @@ namespace nodes
 
                         message_angle.data = 0.0f;
                         wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                         break;
                     default:
                         break;
@@ -347,91 +347,115 @@ namespace nodes
             }
         }
 
-        if (lidar_front_avg < 0.26f) 
+        static uint8_t num_crossroad_detects = 0;
+        if (lidar_front_avg < 0.3f) 
         {
-            RCLCPP_WARN(this->get_logger(), "Obstacle detected at %.2f meters ahead, stopping robot.", lidar_front_avg);
+            num_crossroad_detects++;
 
-            auto message_speed = std_msgs::msg::Float32();
-            message_speed.data = 0.0f;
-            wanted_speed_publisher_->publish(message_speed);
-
-            if(lidar_left_avg > crossroad_left_threshold && lidar_right_avg > crossroad_right_threshold)
+            if (num_crossroad_detects > 3) // require multiple consecutive detects to avoid false positives
             {
-                switch(aruco_last_id_)
+                num_crossroad_detects = 0;
+
+                RCLCPP_WARN(this->get_logger(), "Obstacle detected at %.2f meters ahead, stopping robot.", lidar_front_avg);
+
+                auto message_speed = std_msgs::msg::Float32();
+                message_speed.data = 0.0f;
+                wanted_speed_publisher_->publish(message_speed);
+
+                if(lidar_left_avg > crossroad_left_threshold && lidar_right_avg > crossroad_right_threshold)
                 {
-                    case 0:
-                    case 10:
-                        // go straight (but we are in a dead end, so turn around)
-                        message_angle.data = 30.0f; // turn around
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+                    auto message_angle = std_msgs::msg::Float32();
+                    switch(aruco_last_id_)
+                    {
+                        case 0:
+                        case 10:
+                            // go straight (but we are in a dead end, so turn around)
+                            message_angle.data = 30.0f; // turn around
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
-                        message_angle.data = 0.0f;
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                        break;
-                    case 1:
-                    case 11:
-                        message_angle.data = 30.0f; // turn left
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                            message_angle.data = 0.0f;
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                            break;
+                        case 1:
+                        case 11:
+                            message_angle.data = 30.0f; // turn left
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-                        message_angle.data = 0.0f;
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                        break;
-                    case 2:
-                    case 12:
-                        message_angle.data = -30.0f; // turn right
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                            message_angle.data = 0.0f;
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                            break;
+                        case 2:
+                        case 12:
+                            message_angle.data = -30.0f; // turn right
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-                        message_angle.data = 0.0f;
-                        wanted_angle_publisher_->publish(message_angle);
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                        break;
-                    default:
-                        break;
+                            message_angle.data = 0.0f;
+                            wanted_angle_publisher_->publish(message_angle);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                            break;
+                        default:
+                            break;
+                    }
+
+                    last_crossroad_time_ = this->now();
                 }
 
-                last_crossroad_time_ = this->now();
-            }
+                else if(lidar_left_avg > crossroad_left_threshold)
+                {
+                    auto message_angle = std_msgs::msg::Float32();
+                    message_angle.data = 30.0f; // turn left
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-            else if(lidar_left_avg > crossroad_left_threshold)
-            {
-                auto message_angle = std_msgs::msg::Float32();
-                message_angle.data = 30.0f; // turn left
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    message_angle.data = 0.0f;
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                }
+                else if(lidar_right_avg > crossroad_right_threshold)
+                {
+                    auto message_angle = std_msgs::msg::Float32();
+                    message_angle.data = -30.0f; // turn right
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-                message_angle.data = 0.0f;
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            }
-            else if(lidar_right_avg > crossroad_right_threshold)
-            {
-                auto message_angle = std_msgs::msg::Float32();
-                message_angle.data = -30.0f; // turn right
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    message_angle.data = 0.0f;
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                }
+                else
+                {
+                    // we are in a dead end, turn around
+                    auto message_angle = std_msgs::msg::Float32();
+                    message_angle.data = 30.0f; // turn around
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
-                message_angle.data = 0.0f;
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            }
-            else
-            {
-                // we are in a dead end, turn around
-                auto message_angle = std_msgs::msg::Float32();
-                message_angle.data = 30.0f; // turn around
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-
-                message_angle.data = 0.0f;
-                wanted_angle_publisher_->publish(message_angle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    message_angle.data = 0.0f;
+                    wanted_angle_publisher_->publish(message_angle);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                }
             }
         }
+
+        auto message_speed = std_msgs::msg::Float32();
+        if(lidar_front_avg < 0.6f)
+        {
+            message_speed.data = 10.0f;
+        }
+        else
+        {
+            message_speed.data = 20.0f;
+        }
+        wanted_speed_publisher_->publish(message_speed);
+
+        auto message_angle = std_msgs::msg::Float32();
+        message_angle.data = -best_heading;
+        wanted_angle_publisher_->publish(message_angle); 
             
 
         // Create an RGB debug image (BGR for OpenCV) and draw red lines for each candidate heading
