@@ -2,20 +2,20 @@
 #include <nodes/node_pathfinder.hpp>
 #include <cmath>
 
-#define DETECTION_RADIUS_CLOSE (0.35f)
+#define DETECTION_RADIUS_CLOSE (0.48f)
 #define DETECTION_RADIUS_HYSTERESIS_CLOSE (0.1f) // 0.1f
 
-#define DETECTION_RADIUS_MIDDLE (0.7f)
-#define DETECTION_RADIUS_HYSTERESIS_MIDDLE (0.25f) // 0.1f
+#define DETECTION_RADIUS_MIDDLE (0.55f)
+#define DETECTION_RADIUS_HYSTERESIS_MIDDLE (0.35f) // 0.1f
 
 #define DETECTION_RADIUS_FAR (0.75f)
 #define DETECTION_RADIUS_HYSTERESIS_FAR (0.1f) // 0.1f
 
 #define MIN_GAP_WIDTH_INDEXES (20) // minimum gap width in number of LIDAR points, should be at least 2 to allow the robot to fit through
 
-#define MAX_GAP_WIDTH_ANGLE (170.0f) // degrees
+#define MAX_GAP_WIDTH_ANGLE (100.0f) // degrees
 
-#define FAR_CENTRE_SECTION (15.0f) // degrees, +- angle range
+#define FAR_CENTRE_SECTION (40.0f) // degrees, +- angle range
 
 #define OBSTACLE (1)
 #define NO_OBSTACLE (0)
@@ -80,13 +80,6 @@ std::vector<struct GapCentre> gap_centres_angles(const sensor_msgs::msg::LaserSc
         inverted_obstacle_map[i] = obstacle_map[(i + msg->ranges.size() / 2) % msg->ranges.size()];
     }  
     std::copy(inverted_obstacle_map, inverted_obstacle_map + msg->ranges.size(), obstacle_map);
-    // invert direction of the obstacle map so that front is in the middle of the array and left and right are on the sides
-    bool inverted_obstacle_map[msg->ranges.size()];
-    for(size_t i = 0; i < msg->ranges.size(); ++i)
-    {
-        inverted_obstacle_map[i] = obstacle_map[(i + msg->ranges.size() / 2) % msg->ranges.size()];
-    }  
-    std::copy(inverted_obstacle_map, inverted_obstacle_map + msg->ranges.size(), obstacle_map);
 
     // delete singularities in the obstacle map
     for(size_t i = 1; i < msg->ranges.size() - 1; ++i)
@@ -128,7 +121,7 @@ std::vector<struct GapCentre> gap_centres_angles(const sensor_msgs::msg::LaserSc
                             (static_cast<float>(gap_start + i) / 2) * msg->angle_increment * 180.0f / static_cast<float>(M_PI) - 180.0f, 
                             static_cast<float>(i - gap_start) * 360.0f / static_cast<float>(msg->ranges.size()) // convert gap width from number of indices to degrees
                         });
-                };
+                }
             }
             else
             {
@@ -207,43 +200,47 @@ namespace nodes
         }
 
         const float front_angle = 0.0f; // degrees
-        struct GapCentre closest_gap_centre = {0.0f, 0.0f};
-        bool closest_gap_centre_valid = false;
+        struct GapCentre close_gap_centre;
+        struct GapCentre far_gap_centre;
+        struct GapCentre closest_gap_centre;
+
         if(!gap_centres_close.empty())
         {
-            closest_gap_centre = gap_centres_close[0];
-            for(size_t i = 0; i < gap_centres_close.size(); ++i)
-            {
-                if(std::abs(gap_centres_close[i].angle - front_angle) < std::abs(closest_gap_centre.angle - front_angle))
-                {
-                    closest_gap_centre = gap_centres_close[i];
-                }
-            }
-
-            if(closest_gap_centre.size > MAX_GAP_WIDTH_ANGLE)
-            {
-                RCLCPP_WARN(this->get_logger(), "No valid gap found, closest gap is too wide (%.2f degrees)", closest_gap_centre.size);
-                closest_gap_centre_valid = false;
-            }
-            else
-            {
-                closest_gap_centre_valid = true;
-            }
+            close_gap_centre = *std::min_element(gap_centres_close.begin(), gap_centres_close.end(), [front_angle](const struct GapCentre& a, const struct GapCentre& b) {
+                return std::abs(a.angle - front_angle) < std::abs(b.angle - front_angle);
+            });
+        }
+        else
+        {
+            close_gap_centre = {0.0f, 0.0f}; // default value if no close gap centres are found
         }
 
-        if(!closest_gap_centre_valid && !gap_centres_far.empty())
+        if(!gap_centres_far.empty())
         {
-            closest_gap_centre = gap_centres_far[0];
-            for(size_t i = 0; i < gap_centres_far.size(); ++i)
-            {
-                if(std::abs(gap_centres_far[i].angle - front_angle) < std::abs(closest_gap_centre.angle - front_angle))
-                {
-                    if(std::abs(gap_centres_far[i].angle) < FAR_CENTRE_SECTION) // point is facing front
-                    {
-                        closest_gap_centre = gap_centres_far[i];
-                    }
-                }
-            }
+            far_gap_centre = *std::min_element(gap_centres_far.begin(), gap_centres_far.end(), [front_angle](const struct GapCentre& a, const struct GapCentre& b) {
+                return std::abs(a.angle - front_angle) < std::abs(b.angle - front_angle);
+            });
+        }
+        else
+        {
+            far_gap_centre = {0.0f, 0.0f}; // default value if no far gap centres are found
+        }
+
+        if(far_gap_centre.size > 0.0f &&
+           std::abs(far_gap_centre.angle) < FAR_CENTRE_SECTION && 
+           close_gap_centre.size > MAX_GAP_WIDTH_ANGLE &&
+           far_gap_centre.angle < close_gap_centre.angle + close_gap_centre.size / 2.0f &&
+           far_gap_centre.angle > close_gap_centre.angle - close_gap_centre.size / 2.0f)
+        {
+            closest_gap_centre = far_gap_centre;
+            RCLCPP_INFO(this->get_logger(), "Choosing far gap centre at angle %.2f with size %.2f over close gap centre at angle %.2f with size %.2f", 
+                far_gap_centre.angle, far_gap_centre.size, close_gap_centre.angle, close_gap_centre.size);
+        }
+        else
+        {
+            closest_gap_centre = close_gap_centre;
+            RCLCPP_INFO(this->get_logger(), "Choosing close gap centre at angle %.2f with size %.2f", 
+                close_gap_centre.angle, close_gap_centre.size);
         }
 
         std::string gap_centres_close_str;
@@ -281,7 +278,7 @@ namespace nodes
             {
                 ++num_crossroad_detects;
 
-                if(num_crossroad_detects >= 4) // only consider it a crossroad if it is detected for 4 consecutive scans
+                if(num_crossroad_detects >= 6) // only consider it a crossroad if it is detected for 6 consecutive scans
                 {
                     num_crossroad_detects = 0;
                     RCLCPP_INFO(this->get_logger(), "Crossroad detected!");
@@ -306,6 +303,7 @@ namespace nodes
                     }
                     */
 
+                    /*
                     RCLCPP_INFO(this->get_logger(), "Last Aruco ID: %d", aruco_last_id_);
 
                     if(aruco_last_id_ == 0 || aruco_last_id_ == 10)
@@ -317,6 +315,7 @@ namespace nodes
                         auto message_speed = std_msgs::msg::Float32();
                         message_speed.data = 0.0f;
                         wanted_speed_publisher_->publish(message_speed);
+                    }
                     */
 
                     RCLCPP_INFO(this->get_logger(), "Last Aruco ID: %d", aruco_last_id_);
@@ -332,10 +331,10 @@ namespace nodes
                         wanted_speed_publisher_->publish(message_speed);
 
                         auto message_angle = std_msgs::msg::Float32();
-                        message_angle.data = (aruco_last_id_ == 1 || aruco_last_id_ == 11) ? 45.0f : -45.0f;
+                        message_angle.data = (aruco_last_id_ == 1 || aruco_last_id_ == 11) ? 90.0f : -90.0f;
                         wanted_angle_publisher_->publish(message_angle);
 
-                        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // wait for the robot to turn
+                        std::this_thread::sleep_for(std::chrono::milliseconds(700)); // wait for the robot to turn
 
                         message_speed = std_msgs::msg::Float32();
                         message_speed.data = 0.0f;
@@ -345,10 +344,6 @@ namespace nodes
                         message_angle.data = 0.0f;
                         wanted_angle_publisher_->publish(message_angle);
 
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2000)); // wait for the robot to turn
-                    }
-
-                    aruco_last_id_ = 2; // reset aruco ID to default right turn
                         std::this_thread::sleep_for(std::chrono::milliseconds(2000)); // wait for the robot to turn
                     }
 
@@ -371,12 +366,10 @@ namespace nodes
         float angle_to_gap_centre_deg = closest_gap_centre.angle;
 
         auto message_speed = std_msgs::msg::Float32();
-        message_speed.data = 10.0f;
-        message_speed.data = 10.0f;
+        message_speed.data = 12.0f;
         wanted_speed_publisher_->publish(message_speed);
 
         auto message_angle = std_msgs::msg::Float32();
-        message_angle.data = angle_to_gap_centre_deg;
         message_angle.data = angle_to_gap_centre_deg;
         wanted_angle_publisher_->publish(message_angle);
     }

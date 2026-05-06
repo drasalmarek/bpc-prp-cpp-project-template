@@ -25,8 +25,15 @@ namespace nodes
             return;
         }
 
-        // For simplicity, we will just take the first detected marker and publish its ID
-        int marker_id = arucos[0].id;
+        int marker_id = 12;
+        for (const auto& aruco : arucos) 
+        {
+            if (aruco.id < marker_id) 
+            {
+                marker_id = aruco.id;
+            }
+        }
+
         RCLCPP_INFO(this->get_logger(), "Detected marker with ID: %d", marker_id);
         auto message = std_msgs::msg::UInt8();
         message.data = marker_id;

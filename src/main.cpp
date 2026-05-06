@@ -9,8 +9,8 @@
 #include "nodes/node_lidar_control.hpp"
 #include "nodes/node_fsm.hpp"
 #include "nodes/node_imu.hpp"
-#include "nodes/node_pathfinder.hpp"
 #include "nodes/node_motor_pid.hpp"
+#include "nodes/node_pathfinder.hpp"
 #include "nodes/node_qr_code.hpp"
 
 int main(int argc, char* argv[]) {
@@ -19,11 +19,13 @@ int main(int argc, char* argv[]) {
     // Create an executor (for handling multiple nodes)
     auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
 
+    /*
     auto pathfinder_node = std::make_shared<nodes::node_pathfinder>(
         "/bpc_prp_robot/lidar",
         "/bpc_prp_robot/aruco",
         "/bpc_prp_robot/wanted_speed",
         "/bpc_prp_robot/wanted_angle");
+    */
 
     auto motor_pid_node = std::make_shared<nodes::node_motor_pid>(
         "/bpc_prp_robot/wanted_angle",
@@ -34,9 +36,18 @@ int main(int argc, char* argv[]) {
         "/bpc_prp_robot/camera",
         "/bpc_prp_robot/aruco");
 
+    auto lidar_image_node = std::make_shared<nodes::node_lidar_image>(
+        "/bpc_prp_robot/lidar",
+        "/bpc_prp_robot/lidar_image",
+        "/bpc_prp_robot/aruco",
+        "/bpc_prp_robot/wanted_speed",
+        "/bpc_prp_robot/wanted_angle");
+
+     // Add nodes to the executor
+
     // Add nodes to the executor
+    executor->add_node(lidar_image_node);
     executor->add_node(motor_pid_node);
-    executor->add_node(pathfinder_node);
     executor->add_node(qr_code_node);
 
     // Run the executor (handles callbacks for both nodes)

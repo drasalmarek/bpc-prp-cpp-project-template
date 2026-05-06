@@ -30,7 +30,7 @@ namespace nodes
      private:
       float angle_ = 0.0;
       rclcpp::Time last_crossroad_time_;
-      rclcpp::Duration crossroad_cooldown_ = rclcpp::Duration::from_seconds(2.0);
+      rclcpp::Duration crossroad_cooldown_ = rclcpp::Duration::from_seconds(4.0);
 
       uint8_t aruco_last_id_ = 2;
 
