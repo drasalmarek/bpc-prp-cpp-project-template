@@ -300,7 +300,7 @@ namespace nodes
             {
                 RCLCPP_INFO(this->get_logger(), "Crossroad detected!");
 
-                if(lidar_back_avg > 0.8f)
+                if(lidar_back_avg > 0.6f)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 }
@@ -372,7 +372,7 @@ namespace nodes
                             // go straight (but we are in a dead end, so turn around)
                             message_angle.data = 30.0f; // turn around
                             wanted_angle_publisher_->publish(message_angle);
-                            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
                             message_angle.data = 0.0f;
                             wanted_angle_publisher_->publish(message_angle);
@@ -440,6 +440,15 @@ namespace nodes
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
             }
+        }
+
+        if(lidar_left_avg < 0.2f)
+        {
+            best_heading += 3.0f;
+        }
+        else if(lidar_right_avg < 0.2f)
+        {
+            best_heading -= 3.0f;
         }
 
         auto message_speed = std_msgs::msg::Float32();
